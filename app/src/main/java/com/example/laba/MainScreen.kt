@@ -1,8 +1,8 @@
 package com.example.laba
 
+import android.annotation.SuppressLint
 import androidx.compose.material3.DatePickerDialog as M3DatePickerDialog
 import android.content.res.Configuration
-import android.view.Window
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,48 +13,46 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.laba.ui.theme.LABATheme
 import kotlinx.datetime.*
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun MoodApp() {
     val viewModel: MoodViewModel = viewModel()
     val moodList by viewModel.moodList.collectAsState()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Состояние формы
     var comment by remember { mutableStateOf("") }
     var selectedMood by remember { mutableStateOf<Mood?>(null) }
     var selectedDate by remember {
         mutableStateOf(Clock.System.todayIn(TimeZone.currentSystemDefault()))
     }
+    val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // Настройка системных баров (как было в вашем коде)
-    val view = LocalView.current
-    DisposableEffect(Unit) {
-        val window: Window = (view.context as androidx.activity.ComponentActivity).window
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val controller = WindowCompat.getInsetsController(window, view)
-        controller.hide(WindowInsetsCompat.Type.statusBars())
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        onDispose {
-            controller.show(WindowInsetsCompat.Type.statusBars())
-            WindowCompat.setDecorFitsSystemWindows(window, true)
+
+    LaunchedEffect(showDatePicker) {
+        if (showDatePicker) {
+            datePickerState.selectedDateMillis = selectedDate.atStartOfDayIn(TimeZone.currentSystemDefault()).toEpochMilliseconds()
+            if (isLandscape) {
+                datePickerState.displayMode = DisplayMode.Input
+            } else {
+                datePickerState.displayMode = DisplayMode.Picker
+            }
         }
     }
 
-    // Обработчик добавления записи
     val onAddEntry = {
         if (comment.isNotBlank() && selectedMood != null) {
             viewModel.addHumanMood(
                 message = comment,
-                currentDate = Clock.System.todayIn(TimeZone.currentSystemDefault()),
+                currentDate = selectedDate,
                 humanMood = selectedMood!!
             )
             comment = ""
@@ -62,31 +60,25 @@ fun MoodApp() {
         }
     }
 
-    // 1. Получаем конфигурацию устройства
-    val configuration = LocalConfiguration.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        // Учитываем вырезы экрана и системные отступы
+        modifier = Modifier.fillMaxSize().imePadding().systemBarsPadding(),
         contentWindowInsets = WindowInsets.safeDrawing
     ) { innerPadding ->
 
-        // Главный контейнер
-        Box(modifier = Modifier.padding(innerPadding).padding(16.dp)) {
+        Box(modifier = Modifier.padding(innerPadding).padding(0.dp).imePadding()) {
 
             if (isLandscape) {
-                // === ГОРИЗОНТАЛЬНАЯ ОРИЕНТАЦИЯ (ROW) ===
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Левая часть: Форма ввода (делаем скроллящейся, чтобы влезла клавиатура)
+
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
-                            .fillMaxHeight(),
+                            //.heightIn(min = 0.dp, max = LocalConfiguration.current.screenHeightDp.dp)
+                            ,
                         verticalArrangement = Arrangement.Top
                     ) {
                         Text(
@@ -106,13 +98,12 @@ fun MoodApp() {
                         )
                     }
 
-                    // Правая часть: Список
                     Column(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
+                            .imePadding()
                     ) {
-                        // В горизонтальном режиме заголовок списка можно добавить сюда или скрыть
                         MoodListContent(
                             moodList = moodList,
                             onDelete = { viewModel.deleteHumanMood(it) }
@@ -120,7 +111,6 @@ fun MoodApp() {
                     }
                 }
             } else {
-                // === ВЕРТИКАЛЬНАЯ ОРИЕНТАЦИЯ (COLUMN) ===
                 Column(
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -142,22 +132,17 @@ fun MoodApp() {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Список занимает оставшееся место
                     MoodListContent(
                         moodList = moodList,
                         onDelete = { viewModel.deleteHumanMood(it) },
-                        modifier = Modifier.weight(1f) // Важно для вертикальной ориентации
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
         }
     }
 
-    // Логика DatePicker осталась прежней
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = selectedDate.atStartOfDayIn(TimeZone.currentSystemDefault()).toEpochMilliseconds()
-        )
         M3DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
@@ -175,13 +160,10 @@ fun MoodApp() {
                 TextButton(onClick = { showDatePicker = false }) { Text("Отмена") }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(state = datePickerState, )
         }
     }
 }
-
-// === ВСПОМОГАТЕЛЬНЫЕ COMPOSABLE ===
-
 @Composable
 fun MoodInputForm(
     selectedDate: LocalDate,
@@ -257,5 +239,13 @@ fun MoodListContent(
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewNew() {
+    LABATheme {
+        MoodApp()
     }
 }

@@ -69,3 +69,11 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, "Состояние: $message", Toast.LENGTH_SHORT).show()
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun Preview() {
+    LABATheme {
+        MoodApp()
+    }
+}
