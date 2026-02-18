@@ -87,11 +87,10 @@ fun MoodApp() {
         floatingActionButton = {
             FloatingActionButton(onClick = {
                 scope.launch {
-                    // 1. Показываем Snackbar
-                    snackbarHostState.showSnackbar("Переходим к статистике...")
-                    // 2. Задержка для наглядности (опционально)
-                    kotlinx.coroutines.delay(500)
-                    // 3. Интент для перехода
+                    launch {
+                        snackbarHostState.showSnackbar("Переходим к статистике...")
+                    }
+                    kotlinx.coroutines.delay(300)
                     val intent = Intent(context, StatisticsActivity::class.java)
                     context.startActivity(intent)
                 }
