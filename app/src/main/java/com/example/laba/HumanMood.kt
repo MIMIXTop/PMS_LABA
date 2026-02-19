@@ -1,11 +1,8 @@
 package com.example.laba
 
 import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.todayAt
 import kotlinx.datetime.todayIn
 
 data class HumanMood(
