@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import androidx.compose.material3.DatePickerDialog as M3DatePickerDialog
 import android.content.res.Configuration
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,6 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.laba.ui.theme.LABATheme
 import kotlinx.coroutines.launch
@@ -45,8 +50,40 @@ fun MoodApp() {
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        snackbarHostState.showSnackbar("Вы вернулись в Дневник настроения")
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val motivationalQuotes = remember {
+        listOf(
+            "После черной полосы всегда идет белая. Держитесь!",
+            "Даже самая темная ночь всегда заканчивается рассветом.",
+            "Не унывайте! Завтра будет новый день и новые возможности.",
+            "Трудности делают нас сильнее. Вы обязательно со всем справитесь!",
+            "Улыбнитесь! Вы прекрасны, и всё обязательно наладится 💙",
+            "Ошибки и сложные дни — это просто опыт. Дальше будет лучше!",
+            "Позвольте себе отдохнуть сегодня. Вы заслуживаете заботы о себе."
+        )
+    }
+
+    val statsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        scope.launch {
+            snackbarHostState.showSnackbar("Вы вернулись на главный экран")
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch {
+                    snackbarHostState.showSnackbar("Вы находитесь на главном экране")
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     LaunchedEffect(showDatePicker) {
@@ -69,9 +106,11 @@ fun MoodApp() {
             )
 
             if (selectedMood == Mood.Bad) {
+                val randomQuote = motivationalQuotes.random()
+
                 notificationHelper.showNotification(
-                    title = "Не унывайте!",
-                    message = "Помните: после дождя всегда бывает радуга. Посмотрите вашу статистику!"
+                    title = "Поддержка для вас",
+                    message = randomQuote
                 )
             }
 
@@ -91,8 +130,24 @@ fun MoodApp() {
                         snackbarHostState.showSnackbar("Переходим к статистике...")
                     }
                     kotlinx.coroutines.delay(300)
-                    val intent = Intent(context, StatisticsActivity::class.java)
-                    context.startActivity(intent)
+
+                    val moodIntArray = moodList.map {item ->
+                        when(item.mood) {
+                            Mood.Bad -> 1
+                            Mood.Normal -> 2
+                            Mood.Good -> 3
+                        }
+                    }.toIntArray()
+
+                    val dateIntArray = moodList.map { item ->
+                        item.date.toEpochDays()
+                    }.toIntArray()
+
+                    val intent = Intent(context, StatisticsActivity::class.java).apply {
+                        putExtra("MOOD_DATA", moodIntArray)
+                        putExtra("DATE_DATA",dateIntArray)
+                    }
+                    statsLauncher.launch(intent)
                 }
             }) {
                 Icon(imageVector = androidx.compose.material.icons.Icons.Default.Analytics, contentDescription = "Stats")
@@ -112,7 +167,6 @@ fun MoodApp() {
                         modifier = Modifier
                             .weight(1f)
                             .verticalScroll(rememberScrollState())
-                            //.heightIn(min = 0.dp, max = LocalConfiguration.current.screenHeightDp.dp)
                             ,
                         verticalArrangement = Arrangement.Top
                     ) {
@@ -267,7 +321,7 @@ fun MoodListContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
-            items(moodList, key = { it.id }) { mood -> // Добавил key для производительности
+            items(moodList, key = { it.id }) { mood ->
                 MoodItem(
                     humanMood = mood,
                     onDelete = { onDelete(mood) }

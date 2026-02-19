@@ -25,7 +25,6 @@ class NotificationHelper(val context: Context) {
     }
 
     fun showNotification(title: String, message: String) {
-        // Интент для перехода в StatisticsActivity через уведомление
         val intent = Intent(context, StatisticsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
