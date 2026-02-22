@@ -1,6 +1,7 @@
 package com.example.laba
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import androidx.compose.material3.DatePickerDialog as M3DatePickerDialog
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
@@ -8,25 +9,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.laba.ui.theme.LABATheme
+import kotlinx.coroutines.launch
 import kotlinx.datetime.*
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun MoodApp() {
+    val context = LocalContext.current
     val viewModel: MoodViewModel = viewModel()
     val moodList by viewModel.moodList.collectAsState()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val notificationHelper = remember { NotificationHelper(context) }
 
     var comment by remember { mutableStateOf("") }
     var selectedMood by remember { mutableStateOf<Mood?>(null) }
@@ -36,6 +45,9 @@ fun MoodApp() {
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        snackbarHostState.showSnackbar("Вы вернулись в Дневник настроения")
+    }
 
     LaunchedEffect(showDatePicker) {
         if (showDatePicker) {
@@ -55,6 +67,14 @@ fun MoodApp() {
                 currentDate = selectedDate,
                 humanMood = selectedMood!!
             )
+
+            if (selectedMood == Mood.Bad) {
+                notificationHelper.showNotification(
+                    title = "Не унывайте!",
+                    message = "Помните: после дождя всегда бывает радуга. Посмотрите вашу статистику!"
+                )
+            }
+
             comment = ""
             selectedMood = null
         }
@@ -62,10 +82,25 @@ fun MoodApp() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize().imePadding().systemBarsPadding(),
-        contentWindowInsets = WindowInsets.safeDrawing
+        contentWindowInsets = WindowInsets.safeDrawing,
+        snackbarHost = {SnackbarHost(snackbarHostState)},
+        floatingActionButton = {
+            FloatingActionButton(onClick = {
+                scope.launch {
+                    launch {
+                        snackbarHostState.showSnackbar("Переходим к статистике...")
+                    }
+                    kotlinx.coroutines.delay(300)
+                    val intent = Intent(context, StatisticsActivity::class.java)
+                    context.startActivity(intent)
+                }
+            }) {
+                Icon(imageVector = androidx.compose.material.icons.Icons.Default.Analytics, contentDescription = "Stats")
+            }
+        }
     ) { innerPadding ->
 
-        Box(modifier = Modifier.padding(innerPadding).padding(0.dp).imePadding()) {
+        Box(modifier = Modifier.padding(innerPadding).padding(horizontal = 10.dp).imePadding()) {
 
             if (isLandscape) {
                 Row(
@@ -84,7 +119,7 @@ fun MoodApp() {
                         Text(
                             text = "Дневник настроения",
                             style = MaterialTheme.typography.headlineSmall,
-                            modifier = Modifier.padding(bottom = 16.dp)
+                            modifier = Modifier.padding(bottom = 16.dp),
                         )
 
                         MoodInputForm(
