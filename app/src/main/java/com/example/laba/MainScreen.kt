@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -40,7 +44,18 @@ import kotlinx.datetime.*
 @Composable
 fun MoodApp() {
     val context = LocalContext.current
-    val viewModel: MoodViewModel = viewModel()
+    val viewModel: MoodViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val database = AppDatabase.getDatabase(context)
+
+                val repository = Repository(database.moodDAO())
+                @Suppress("UNCHECKED_CAST")
+                return MoodViewModel(repository) as T
+            }
+        }
+    )
+    var moodToEdit by remember { mutableStateOf<HumanMood?>(null) }
     val moodList by viewModel.moodList.collectAsState()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -67,6 +82,22 @@ fun MoodApp() {
             "Улыбнитесь! Вы прекрасны, и всё обязательно наладится \uD83D\uDC99",
             "Ошибки и сложные дни — это просто опыт. Дальше будет лучше!",
             "Позвольте себе отдохнуть сегодня. Вы заслуживаете заботы о себе."
+        )
+    }
+
+    moodToEdit?.let { mood ->
+        EditMoodDialog(
+            originalMood = mood,
+            onDismiss = { moodToEdit = null },
+            onConfirm = { newComment, newMood, newDate ->
+                val updatedMood = mood.copy(
+                    comment = newComment,
+                    mood = newMood,
+                    date = newDate
+                )
+                viewModel.updateHumanMood(updatedMood)
+                moodToEdit = null
+            }
         )
     }
 
@@ -155,7 +186,7 @@ fun MoodApp() {
                             .weight(1f)
                             .fillMaxHeight()
                             .imePadding()) {
-                            MoodListContent(moodList = moodList, onDelete = { viewModel.deleteHumanMood(it) })
+                            MoodListContent(moodList = moodList, onDelete = { viewModel.deleteHumanMood(it) }, onEdit = {})
                         }
                     }
                 } else {
@@ -178,6 +209,7 @@ fun MoodApp() {
                         MoodListContent(
                             moodList = moodList,
                             onDelete = { viewModel.deleteHumanMood(it) },
+                            onEdit = {moodToEdit = it},
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -254,7 +286,7 @@ fun StatsScreen(moodList: List<HumanMood>, onBack: () -> Unit) {
             TopAppBar(
                 title = { Text("Моя энергия", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад") }
                 }
             )
         }
@@ -437,6 +469,7 @@ fun MoodInputForm(
 fun MoodListContent(
     moodList: List<HumanMood>,
     onDelete: (HumanMood) -> Unit,
+    onEdit: (HumanMood) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (moodList.isEmpty()) {
@@ -456,7 +489,7 @@ fun MoodListContent(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             items(moodList, key = { it.id }) { mood ->
-                MoodItem(humanMood = mood, onDelete = { onDelete(mood) })
+                MoodItem(humanMood = mood, onDelete = { onDelete(mood) }, onEdit = { onEdit(mood)})
             }
         }
     }

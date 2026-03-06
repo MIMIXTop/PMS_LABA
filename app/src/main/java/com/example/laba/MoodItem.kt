@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,7 +19,8 @@ import kotlinx.datetime.LocalDate
 @Composable
 fun MoodItem(
     humanMood: HumanMood,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -73,6 +75,17 @@ fun MoodItem(
                     text = moodToText(humanMood.mood),
                     style = MaterialTheme.typography.labelSmall,
                     color = moodToColor(humanMood.mood)
+                )
+            }
+
+            IconButton(
+                modifier = Modifier.size(40.dp) ,
+                onClick = onEdit
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Редактирование",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
 

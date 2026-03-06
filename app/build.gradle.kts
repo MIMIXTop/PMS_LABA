@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.devtools.ksp")
 }
 
 android {
@@ -38,6 +39,10 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.room.ktx)
+    val room_version = "2.8.4"
+    ksp("androidx.room:room-compiler:$room_version")
     implementation("com.patrykandpatrick.vico:compose:2.0.0")
     implementation("com.patrykandpatrick.vico:compose-m3:2.0.0")
     implementation("com.patrykandpatrick.vico:core:2.0.0")
